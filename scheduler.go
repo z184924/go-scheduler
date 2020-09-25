@@ -1,7 +1,7 @@
 package scheduler
 
 import (
-	"github.com/robfig/cron"
+	"gopkg.in/robfig/cron.v2"
 	"log"
 	"runtime"
 	"sort"
