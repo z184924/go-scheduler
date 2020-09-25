@@ -34,6 +34,14 @@ type TaskInfo struct {
 	entry        *Entry
 }
 
+func (p *TaskInfo) GetSpec() string {
+	return p.spec
+}
+
+func (p *TaskInfo) GetNextTime() string {
+	return p.entry.Next.String()
+}
+
 /**
 GetInstance
 */
