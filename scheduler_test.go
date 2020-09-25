@@ -48,5 +48,8 @@ func TestCron_AddTask(t *testing.T) {
 			log.Print("delete bbbb")
 			scheduler.RemoveTask("bbbb")
 		}
+		if i > 10 {
+			return
+		}
 	}
 }
