@@ -78,10 +78,10 @@ func (p *Scheduler) AddTask(task Task, taskName string, parameterMap map[string]
 	}
 	p.taskMap[taskName] = info
 	return p.cron.addJob(info, spec, funcJob(func() {
+		info.RunCount++
 		startTime := time.Now().UnixNano()
 		flag := task.Run(parameterMap)
 		endTime := time.Now().UnixNano()
-		info.RunCount++
 		usedTime := (endTime - startTime) / int64(time.Millisecond)
 		if usedTime > info.LongestTime {
 			info.LongestTime = usedTime
