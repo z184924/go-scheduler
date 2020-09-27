@@ -13,8 +13,9 @@ var instance *Scheduler
 var once sync.Once
 
 type Scheduler struct {
-	cron    *Cron
-	taskMap map[string]*TaskInfo
+	cron         *Cron
+	taskMap      map[string]*TaskInfo
+	taskInfoLock sync.Mutex
 }
 
 type Task interface {
@@ -48,8 +49,9 @@ GetInstance
 func GetInstance() *Scheduler {
 	once.Do(func() {
 		instance = &Scheduler{
-			cron:    newWithLocation(time.Now().Location()),
-			taskMap: make(map[string]*TaskInfo),
+			cron:         newWithLocation(time.Now().Location()),
+			taskMap:      make(map[string]*TaskInfo),
+			taskInfoLock: sync.Mutex{},
 		}
 		instance.cron.start()
 	})
@@ -65,18 +67,20 @@ AddTask
 */
 func (p *Scheduler) AddTask(task Task, taskName string, parameterMap map[string]interface{}, spec string) error {
 	info := &TaskInfo{
-		task,
-		taskName,
-		parameterMap,
-		spec,
-		0,
-		0,
-		0,
-		0,
-		true,
-		nil,
+		Task:         task,
+		TaskName:     taskName,
+		parameterMap: parameterMap,
+		spec:         spec,
+		RunCount:     0,
+		SuccessCount: 0,
+		AverageTime:  0,
+		LongestTime:  0,
+		RunFlag:      true,
+		entry:        nil,
 	}
+	p.taskInfoLock.Lock()
 	p.taskMap[taskName] = info
+	defer p.taskInfoLock.Unlock()
 	return p.cron.addJob(info, spec, funcJob(func() {
 		info.RunCount++
 		startTime := time.Now().UnixNano()
@@ -102,6 +106,7 @@ func (p *Scheduler) RemoveTask(taskName string) bool {
 	if task == nil {
 		return false
 	}
+	p.taskInfoLock.Lock()
 	for i, entity := range p.cron.entries {
 		if entity == task.entry {
 			p.cron.entries = append(p.cron.entries[:i], p.cron.entries[i+1:]...)
@@ -109,6 +114,7 @@ func (p *Scheduler) RemoveTask(taskName string) bool {
 		}
 	}
 	delete(p.taskMap, taskName)
+	defer p.taskInfoLock.Unlock()
 	return true
 }
 
@@ -128,8 +134,10 @@ StopTask
 func (p *Scheduler) StopTask(taskName string) bool {
 	taskInfo, ok := p.taskMap[taskName]
 	if ok {
+		p.taskInfoLock.Lock()
 		taskInfo.entry.runFlag = false
 		taskInfo.RunFlag = false
+		defer p.taskInfoLock.Unlock()
 		return true
 	} else {
 		return false
@@ -143,8 +151,10 @@ StartTask
 func (p *Scheduler) StartTask(taskName string) bool {
 	taskInfo, ok := p.taskMap[taskName]
 	if ok {
+		p.taskInfoLock.Lock()
 		taskInfo.entry.runFlag = true
 		taskInfo.RunFlag = true
+		defer p.taskInfoLock.Unlock()
 		return true
 	} else {
 		return false
